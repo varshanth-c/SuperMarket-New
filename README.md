@@ -76,7 +76,7 @@ A modern, web-based Point of Sale (POS) and Inventory Management System built fo
 
 1.  **Clone the repository:**
     ```sh
-    git clone [https://github.com/varshanth-c/SuperMarket-New.git](https://github.com/varshanth-c/SuperMarket-New.git)
+    git clone https://github.com/varshanth-c/SuperMarket-New.git
     cd SuperMarket-New
     ```
 
