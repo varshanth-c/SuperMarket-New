@@ -76,8 +76,8 @@ A modern, web-based Point of Sale (POS) and Inventory Management System built fo
 
 1.  **Clone the repository:**
     ```sh
-    git clone [https://github.com/varshanth-c/supermarket.git](https://github.com/varshanth-c/supermarket.git)
-    cd supermarket
+    git clone https://github.com/varshanth-c/SuperMarket-New.git
+    cd SuperMarket-New
     ```
 
 2.  **Install dependencies:**
@@ -101,7 +101,7 @@ A modern, web-based Point of Sale (POS) and Inventory Management System built fo
     ```sh
     npm run dev
     ```
-    The application will be available at `http://localhost:5173`.
+    The application will be available at `http://localhost:8080`.
 
 ---
 
