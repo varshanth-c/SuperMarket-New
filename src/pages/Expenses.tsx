@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { motion } from 'framer-motion'; // <-- Import motion
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -175,7 +176,12 @@ const Expenses = () => {
   return (
     <div className="flex min-h-screen w-full flex-col bg-slate-50 dark:bg-slate-950">
       <Navbar />
-      <main className="flex flex-1 flex-col gap-6 p-4 sm:px-6 md:gap-8 md:p-10">
+      <motion.main 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeInOut" }}
+        className="flex flex-1 flex-col gap-6 p-4 sm:px-6 md:gap-8 md:p-10"
+      >
         
         {/* --- Header & Filters --- */}
         <div className="mx-auto flex w-full max-w-7xl flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -261,7 +267,7 @@ const Expenses = () => {
             {/* Expense Pie Chart */}
             <Card className="lg:col-span-2 flex flex-col"><CardHeader><CardTitle>Category Breakdown</CardTitle><CardDescription>Visual distribution of spending.</CardDescription></CardHeader><CardContent className="flex-1 flex items-center justify-center p-0">{categoryStats.length > 0 ? <ExpensePieChart data={categoryStats} total={totalFilteredExpenses} /> : <p className="text-sm text-muted-foreground">No data to display.</p>}</CardContent></Card>
         </div>
-      </main>
+      </motion.main>
 
       {/* --- Dialogs for Add/Edit --- */}
       <ExpenseDialog open={dialogs.add} onOpenChange={(isOpen) => setDialogs({...dialogs, add: isOpen})} expense={newExpense} setExpense={setNewExpense} onSave={handleAddExpense} isPending={createMutation.isPending} title="Add New Expense" />

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // UI Components from shadcn/ui
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -104,10 +104,17 @@ const InventoryStats = ({ items }: { items: InventoryItem[] }) => {
     return { totalItems, lowStockItems, outOfStockItems };
   }, [items]);
 
+  // Define color mappings to ensure Tailwind includes these classes
+  const colorMap = {
+    indigo: { bg: 'bg-indigo-100', text: 'text-indigo-600' },
+    amber: { bg: 'bg-amber-100', text: 'text-amber-600' },
+    rose: { bg: 'bg-rose-100', text: 'text-rose-600' },
+  };
+
   const statCards = [
-    { title: 'Total Products', value: stats.totalItems, icon: Box, color: 'indigo' },
-    { title: 'Low Stock', value: stats.lowStockItems, icon: AlertTriangle, color: 'amber' },
-    { title: 'Out of Stock', value: stats.outOfStockItems, icon: XCircle, color: 'rose' },
+    { title: 'Total Products', value: stats.totalItems, icon: Box, color: 'indigo' as keyof typeof colorMap },
+    { title: 'Low Stock', value: stats.lowStockItems, icon: AlertTriangle, color: 'amber' as keyof typeof colorMap },
+    { title: 'Out of Stock', value: stats.outOfStockItems, icon: XCircle, color: 'rose' as keyof typeof colorMap },
   ];
 
   return (
@@ -122,8 +129,8 @@ const InventoryStats = ({ items }: { items: InventoryItem[] }) => {
           <Card className={`bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-lg transition-shadow duration-300`}>
             <CardContent className="p-6">
               <div className="flex items-center">
-                <div className={`bg-${stat.color}-100 p-3 rounded-lg mr-4`}>
-                  <stat.icon className={`h-6 w-6 text-${stat.color}-600`} />
+                <div className={`${colorMap[stat.color].bg} p-3 rounded-lg mr-4`}>
+                  <stat.icon className={`${colorMap[stat.color].text} h-6 w-6`} />
                 </div>
                 <div>
                   <h3 className="text-lg font-medium text-gray-500">{stat.title}</h3>
@@ -435,62 +442,72 @@ const Inventory = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredItems.length > 0 ? (
-                      filteredItems.map((item) => {
-                        const status = getStockStatus(item);
-                        return (
-                          <TableRow key={item.id} className="hover:bg-gray-50">
-                            <TableCell className="font-medium">
-                              <div className="flex items-center gap-4">
-                                {item.image_url ? (
-                                  <img src={item.image_url} alt={item.item_name} className="w-12 h-12 rounded-lg object-cover" />
-                                ) : (
-                                  <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center"><Package className="h-6 w-6 text-gray-400" /></div>
-                                )}
-                                <div>
-                                  <div className="text-gray-900">{item.item_name}</div>
-                                  <div className="text-sm text-gray-500">{item.brand || 'No Brand'}</div>
+                    <AnimatePresence>
+                      {filteredItems.length > 0 ? (
+                        filteredItems.map((item) => {
+                          const status = getStockStatus(item);
+                          return (
+                            <motion.tr
+                              key={item.id}
+                              layout
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              transition={{ duration: 0.3 }}
+                              className="hover:bg-gray-50"
+                            >
+                              <TableCell className="font-medium">
+                                <div className="flex items-center gap-4">
+                                  {item.image_url ? (
+                                    <img src={item.image_url} alt={item.item_name} className="w-12 h-12 rounded-lg object-cover" />
+                                  ) : (
+                                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center"><Package className="h-6 w-6 text-gray-400" /></div>
+                                  )}
+                                  <div>
+                                    <div className="text-gray-900">{item.item_name}</div>
+                                    <div className="text-sm text-gray-500">{item.brand || 'No Brand'}</div>
+                                  </div>
                                 </div>
-                              </div>
-                            </TableCell>
-                            {isAdmin && (
-                                <TableCell>
-                                    <div className="text-xs text-gray-600 truncate" title={item.profiles?.email || 'N/A'}>
-                                        {item.profiles?.email || 'N/A'}
-                                    </div>
-                                </TableCell>
-                            )}
-                            <TableCell><Badge variant="outline">{item.category}</Badge></TableCell>
-                            <TableCell><div className="font-mono text-sm">{item.sku || 'N/A'}</div></TableCell>
-                            <TableCell className="text-center font-bold text-lg">{item.quantity}</TableCell>
-                            <TableCell>
-                              <div>Selling: <span className="font-semibold">₹{item.unit_price.toFixed(2)}</span></div>
-                              <div className="text-xs text-gray-500">Cost: ₹{item.cost_price.toFixed(2)}</div>
-                            </TableCell>
-                            <TableCell>
-                              <div className={`flex items-center gap-2 text-sm font-medium text-${status.color}-600`}>
-                                <status.icon className="h-4 w-4" />
-                                {status.text}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end space-x-2">
-                                <Button size="icon" variant="ghost" onClick={() => setDialogState({ mode: 'edit', item })}><Edit className="h-4 w-4" /></Button>
-                                <Button size="icon" variant="ghost" className="text-rose-500 hover:text-rose-700" onClick={() => deleteItemMutation.mutate({ id: item.id })}><Trash2 className="h-4 w-4" /></Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={isAdmin ? 8 : 7} className="h-48 text-center">
-                          <Package className="h-12 w-12 mx-auto text-gray-400" />
-                          <h3 className="mt-4 text-lg font-medium text-gray-900">No products found</h3>
-                          <p className="mt-1 text-gray-500">Try adjusting your search or filter.</p>
-                        </TableCell>
-                      </TableRow>
-                    )}
+                              </TableCell>
+                              {isAdmin && (
+                                  <TableCell>
+                                      <div className="text-xs text-gray-600 truncate" title={item.profiles?.email || 'N/A'}>
+                                          {item.profiles?.email || 'N/A'}
+                                      </div>
+                                  </TableCell>
+                              )}
+                              <TableCell><Badge variant="outline">{item.category}</Badge></TableCell>
+                              <TableCell><div className="font-mono text-sm">{item.sku || 'N/A'}</div></TableCell>
+                              <TableCell className="text-center font-bold text-lg">{item.quantity}</TableCell>
+                              <TableCell>
+                                <div>Selling: <span className="font-semibold">₹{item.unit_price.toFixed(2)}</span></div>
+                                <div className="text-xs text-gray-500">Cost: ₹{item.cost_price.toFixed(2)}</div>
+                              </TableCell>
+                              <TableCell>
+                                <div className={`flex items-center gap-2 text-sm font-medium text-${status.color}-600`}>
+                                  <status.icon className="h-4 w-4" />
+                                  {status.text}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end space-x-2">
+                                  <Button size="icon" variant="ghost" onClick={() => setDialogState({ mode: 'edit', item })}><Edit className="h-4 w-4" /></Button>
+                                  <Button size="icon" variant="ghost" className="text-rose-500 hover:text-rose-700" onClick={() => deleteItemMutation.mutate({ id: item.id })}><Trash2 className="h-4 w-4" /></Button>
+                                </div>
+                              </TableCell>
+                            </motion.tr>
+                          );
+                        })
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={isAdmin ? 8 : 7} className="h-48 text-center">
+                            <Package className="h-12 w-12 mx-auto text-gray-400" />
+                            <h3 className="mt-4 text-lg font-medium text-gray-900">No products found</h3>
+                            <p className="mt-1 text-gray-500">Try adjusting your search or filter.</p>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </AnimatePresence>
                   </TableBody>
                 </Table>
               </div>

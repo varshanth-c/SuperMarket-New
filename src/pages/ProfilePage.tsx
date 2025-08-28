@@ -1,20 +1,19 @@
-// src/pages/ProfilePage.tsx (Corrected to use the right router)
+// src/pages/ProfilePage.tsx
 
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion'; // 1. Import motion
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, LogOut, User as UserIcon } from 'lucide-react';
-// FIX: Import `useNavigate` from `react-router-dom`, NOT `useRouter` from Next.js
+import { Loader2, LogOut, User as UserIcon, ArrowLeft } from 'lucide-react'; // 2. Import ArrowLeft icon
 import { useNavigate } from 'react-router-dom'; 
 
 export const ProfilePage = () => {
   const { user, profile, updateProfile, signOut, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  // FIX: Initialize `useNavigate`
   const navigate = useNavigate(); 
 
   const [formData, setFormData] = useState({
@@ -79,7 +78,6 @@ export const ProfilePage = () => {
 
   const handleLogout = async () => {
     await signOut();
-    // FIX: Use `navigate` to redirect the user
     navigate('/'); 
   };
 
@@ -92,7 +90,23 @@ export const ProfilePage = () => {
   }
 
   return (
-     <div className="container mx-auto py-10 px-4">
+    // 3. Apply the motion animation to the main container
+     <motion.div 
+        className="container mx-auto py-10 px-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+     >
+        {/* 4. Add the Back button here */}
+        <Button 
+            variant="ghost" 
+            onClick={() => navigate(-1)} 
+            className="mb-4"
+        >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+        </Button>
+
       <Card className="max-w-2xl mx-auto">
         <form onSubmit={handleSubmit}>
           <CardHeader>
@@ -141,6 +155,6 @@ export const ProfilePage = () => {
           </CardFooter>
         </form>
       </Card>
-    </div>
+    </motion.div>
   );
 };

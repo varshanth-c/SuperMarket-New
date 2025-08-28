@@ -37,6 +37,7 @@ interface InsightRule { antecedent: string; consequent: string; confidence: numb
 const formatCurrency = (value: number) => `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
 // --- Data Processing Function ---
+// (Your existing processAnalyticsData and CustomAreaTooltip functions remain unchanged)
 const processAnalyticsData = (sales: SalesRecord[], inventory: InventoryItem[], expenses: ExpenseRecord[]) => {
     const total_sales = sales.reduce((sum, sale) => sum + Number(sale.total_amount), 0);
     const total_expenses = expenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
@@ -110,6 +111,29 @@ const CustomAreaTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+// 1. Define reusable animation variants for a clean, orchestrated effect
+const animationVariants = {
+    container: {
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.15, // Delay between each main section
+            },
+        },
+    },
+    item: {
+        hidden: { y: 20, opacity: 0 },
+        visible: {
+            y: 0,
+            opacity: 1,
+            transition: {
+                duration: 0.5,
+                ease: 'easeOut',
+            },
+        },
+    },
+};
 
 // --- Main Dashboard Component ---
 const Dashboard = () => {
@@ -117,6 +141,7 @@ const Dashboard = () => {
     const [date, setDate] = useState<DateRange | undefined>({ from: addDays(new Date(), -29), to: new Date() });
 
     const { data, isLoading, error } = useQuery({
+        // ... (Your existing useQuery hook remains unchanged)
         queryKey: ['fullDashboard-allData', date],
         queryFn: async () => {
             if (!user?.id || !date?.from || !date?.to) throw new Error("User or date range is not defined.");
@@ -126,7 +151,6 @@ const Dashboard = () => {
             toDate.setHours(23, 59, 59, 999);
             const endDate = toDate.toISOString();
 
-            // --- Queries now fetch ALL data for a company-wide report ---
             const salesQuery = supabase.from('sales').select('items, total_amount, created_at')
                 .gte('created_at', date.from.toISOString())
                 .lte('created_at', endDate);
@@ -139,11 +163,10 @@ const Dashboard = () => {
                 .then(adminRes => {
                     if (adminRes.error) throw adminRes.error;
                     const adminIds = adminRes.data.map(p => p.id);
-                    if (adminIds.length === 0) return { data: [], error: null }; // Handle case with no admins
+                    if (adminIds.length === 0) return { data: [], error: null };
                     return supabase.from('inventory').select('id, item_name, unit_price, cost_price, quantity, low_stock_threshold').in('user_id', adminIds);
                 });
 
-            // Step 1: Fetch core data from your database first.
             const [salesRes, inventoryRes, expensesRes] = await Promise.all([
                 salesQuery,
                 inventoryQuery,
@@ -154,7 +177,6 @@ const Dashboard = () => {
             if (inventoryRes.error) throw inventoryRes.error;
             if (expensesRes.error) throw expensesRes.error;
 
-            // Step 2: Invoke Edge Functions with the complete sales data.
             const [forecastRes, insightsRes] = await Promise.all([
                 supabase.functions.invoke('forecasting', {
                     body: { salesData: salesRes.data }
@@ -167,7 +189,6 @@ const Dashboard = () => {
             if (forecastRes.error) throw forecastRes.error;
             if (insightsRes.error) throw insightsRes.error;
 
-            // Step 3: Process all the successful results.
             const analytics = processAnalyticsData(salesRes.data, inventoryRes.data, expensesRes.data);
             
             return {
@@ -178,7 +199,7 @@ const Dashboard = () => {
         },
         enabled: !!user?.id && !!date?.from && !!date?.to,
     });
-
+    
     // --- RENDER STATES ---
     if (isLoading) return <div className="flex h-screen w-full items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
     if (error) return <div className="flex h-screen items-center justify-center text-red-500">Error: {(error as Error).message}</div>;
@@ -188,9 +209,9 @@ const Dashboard = () => {
     const { financial_metrics, low_stock, top_selling, profitable_items } = analytics;
     
     const healthStatus = financial_metrics.healthScore > 75 ? { color: 'green', text: 'Excellent', icon: Zap } 
-                           : financial_metrics.healthScore > 50 ? { color: 'yellow', text: 'Good', icon: TrendingUp }
-                           : { color: 'red', text: 'Needs Attention', icon: AlertTriangle };
-                           
+                            : financial_metrics.healthScore > 50 ? { color: 'yellow', text: 'Good', icon: TrendingUp }
+                            : { color: 'red', text: 'Needs Attention', icon: AlertTriangle };
+                            
     const combinedChartData = [
         ...(forecast.historicalData || []).map((d: any) => ({ date: d.date, sales: d.sales })),
         ...(forecast.forecastData || []).map((d: any) => ({ date: d.date, forecast: d.forecast })),
@@ -215,157 +236,146 @@ const Dashboard = () => {
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {/* KPIs */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* 2. Apply the main container variant to the <main> element */}
+            <motion.main 
+                className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
+                variants={animationVariants.container}
+                initial="hidden"
+                animate="visible"
+            >
+                {/* 3. Each major section is now an animated item */}
+                <motion.div variants={animationVariants.item} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Sales</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{formatCurrency(financial_metrics.total_sales)}</div></CardContent></Card>
                     <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Net Profit</CardTitle></CardHeader><CardContent><div className={`text-2xl font-bold ${financial_metrics.net_profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(financial_metrics.net_profit)}</div></CardContent></Card>
                     <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Profit Margin</CardTitle></CardHeader><CardContent><div className={`text-2xl font-bold ${financial_metrics.net_profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{financial_metrics.profit_margin.toFixed(1)}%</div></CardContent></Card>
-                    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}>
-                        <Card className={`bg-${healthStatus.color}-50 border-${healthStatus.color}-200`}>
-                            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium flex items-center gap-2"><healthStatus.icon className={`h-4 w-4 text-${healthStatus.color}-600`} />Performance Health</CardTitle></CardHeader>
-                            <CardContent className="flex items-baseline gap-2">
-                                <div className={`text-2xl font-bold text-${healthStatus.color}-600`}>{financial_metrics.healthScore.toFixed(0)}<span className="text-sm">/100</span></div>
-                                <p className={`text-sm font-semibold text-${healthStatus.color}-500`}>{healthStatus.text}</p>
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-                </div>
+                    <Card className={`bg-${healthStatus.color}-50 border-${healthStatus.color}-200`}>
+                        <CardHeader className="pb-2"><CardTitle className="text-sm font-medium flex items-center gap-2"><healthStatus.icon className={`h-4 w-4 text-${healthStatus.color}-600`} />Performance Health</CardTitle></CardHeader>
+                        <CardContent className="flex items-baseline gap-2">
+                            <div className={`text-2xl font-bold text-${healthStatus.color}-600`}>{financial_metrics.healthScore.toFixed(0)}<span className="text-sm">/100</span></div>
+                            <p className={`text-sm font-semibold text-${healthStatus.color}-500`}>{healthStatus.text}</p>
+                        </CardContent>
+                    </Card>
+                </motion.div>
                 
-                <div className="grid grid-cols-1 gap-6 mt-6">
-                    {/* Sales Forecasting Chart */}
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.5 }}>
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2"><TrendingUp className="text-indigo-500" />Sales & Forecasting</CardTitle>
-                                <CardDescription>Historical sales data and a 7-day forecast to predict future trends.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <AreaChart data={combinedChartData}>
-                                        <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
-                                        <XAxis dataKey="date" tickFormatter={(str) => format(parseISO(str), 'MMM d')} tick={{ fontSize: 12 }} />
-                                        <YAxis tickFormatter={(val) => `₹${val/1000}k`} tick={{ fontSize: 12 }} />
-                                        <RechartsTooltip content={<CustomAreaTooltip />} />
-                                        <Legend />
-                                        <Area type="monotone" dataKey="sales" name="Historical Sales" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2} />
-                                        <Area type="monotone" dataKey="forecast" name="Forecasted Sales" stroke="#a78bfa" fill="#a78bfa" fillOpacity={0.3} strokeDasharray="5 5" />
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-                </div>
+                <motion.div variants={animationVariants.item} className="grid grid-cols-1 gap-6 mt-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><TrendingUp className="text-indigo-500" />Sales & Forecasting</CardTitle>
+                            <CardDescription>Historical sales data and a 7-day forecast to predict future trends.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <ResponsiveContainer width="100%" height={300}>
+                                <AreaChart data={combinedChartData}>
+                                    <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
+                                    <XAxis dataKey="date" tickFormatter={(str) => format(parseISO(str), 'MMM d')} tick={{ fontSize: 12 }} />
+                                    <YAxis tickFormatter={(val) => `₹${val/1000}k`} tick={{ fontSize: 12 }} />
+                                    <RechartsTooltip content={<CustomAreaTooltip />} />
+                                    <Legend />
+                                    <Area type="monotone" dataKey="sales" name="Historical Sales" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2} />
+                                    <Area type="monotone" dataKey="forecast" name="Forecasted Sales" stroke="#a78bfa" fill="#a78bfa" fillOpacity={0.3} strokeDasharray="5 5" />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </CardContent>
+                    </Card>
+                </motion.div>
                 
-                <div className="grid grid-cols-1 gap-6 mt-6">
-                         {/* Strategic Insights */}
-                         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.5 }}>
-                              <Card>
-                                  <CardHeader>
-                                      <CardTitle className="flex items-center gap-2"><Cpu className="text-purple-500"/>Strategic Insights</CardTitle>
-                                      <CardDescription>Actionable suggestions based on product association analysis.</CardDescription>
-                                  </CardHeader>
-                                  <CardContent className="space-y-4">
-                                      {insights && insights.length > 0 ? (
-                                          insights.slice(0, 3).map((rule: InsightRule, index: number) => (
-                                              <div key={index} className="flex items-start gap-4 p-3 bg-slate-100 rounded-lg">
-                                                  <LinkIcon className="h-5 w-5 mt-1 text-purple-500 flex-shrink-0" />
-                                                  <div>
-                                                      <p className="font-semibold text-slate-800">
-                                                          Customers who buy <span className="text-purple-600">{rule.antecedent}</span> also frequently buy <span className="text-purple-600">{rule.consequent}</span>.
-                                                      </p>
-                                                      <p className="text-xs text-slate-500">
-                                                          Consider bundling these items or placing them near each other. Confidence: <span className="font-bold">{(rule.confidence * 100).toFixed(0)}%</span>
-                                                      </p>
-                                                  </div>
-                                              </div>
-                                          ))
-                                      ) : (
-                                          <p className="text-sm text-center text-slate-500 py-4">Not enough data to generate strategic insights yet.</p>
-                                      )}
-                                  </CardContent>
-                              </Card>
-                         </motion.div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-                    {/* Best Performers */}
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.5 }}>
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2"><ShoppingCart className="text-green-500"/>Best Performers</CardTitle>
-                                <CardDescription>Top-selling items by quantity sold.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {top_selling.length > 0 ? (
-                                    <ResponsiveContainer width="100%" height={250}>
-                                        <BarChart data={top_selling} layout="vertical" margin={{ left: 20 }}>
-                                            <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
-                                            <XAxis type="number" hide />
-                                            <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
-                                            <RechartsTooltip cursor={{ fill: '#f1f5f9' }} />
-                                            <Bar dataKey="quantity" name="Quantity Sold" fill="#22c55e" background={{ fill: '#f1f5f9' }} radius={[0, 4, 4, 0]} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                ) : (
-                                    <p className="text-sm text-center text-slate-500 py-4">No sales data for top products.</p>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-
-                    {/* Profit Champions */}
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5, duration: 0.5 }}>
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2"><Target className="text-purple-500"/>Profit Champions</CardTitle>
-                                <CardDescription>Items generating the most profit.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {profitable_items.length > 0 ? (
-                                    <ResponsiveContainer width="100%" height={250}>
-                                        <BarChart data={profitable_items} layout="vertical" margin={{ left: 20 }}>
-                                            <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
-                                            <XAxis type="number" hide />
-                                            <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
-                                            <RechartsTooltip formatter={(value: number) => formatCurrency(value)} cursor={{ fill: '#f1f5f9' }} />
-                                            <Bar dataKey="profit" name="Profit Generated" fill="#8b5cf6" background={{ fill: '#f1f5f9' }} radius={[0, 4, 4, 0]} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                ) : (
-                                    <p className="text-sm text-center text-slate-500 py-4">No profit data available.</p>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-
-                    {/* Low Stock Alerts */}
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6, duration: 0.5 }}>
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2"><Lightbulb className="text-yellow-500"/>Low Stock Alerts</CardTitle>
-                                <CardDescription>Items that require reordering soon.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="h-[250px] overflow-y-auto">
-                                {low_stock.length > 0 ? (
-                                    <ul className="space-y-3 text-sm">
-                                        {low_stock.map((item: any) => (
-                                            <li key={item.id} className="flex justify-between items-center">
-                                                <span>{item.item_name}</span>
-                                                <span className="font-bold text-red-500 bg-red-100 px-2 py-1 rounded">{item.quantity} left</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <div className="flex items-center justify-center h-full">
-                                        <p className="text-sm text-center text-slate-500 py-4">✅ Inventory levels are healthy.</p>
+                <motion.div variants={animationVariants.item} className="grid grid-cols-1 gap-6 mt-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Cpu className="text-purple-500"/>Strategic Insights</CardTitle>
+                            <CardDescription>Actionable suggestions based on product association analysis.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {insights && insights.length > 0 ? (
+                                insights.slice(0, 3).map((rule: InsightRule, index: number) => (
+                                    <div key={index} className="flex items-start gap-4 p-3 bg-slate-100 rounded-lg">
+                                        <LinkIcon className="h-5 w-5 mt-1 text-purple-500 flex-shrink-0" />
+                                        <div>
+                                            <p className="font-semibold text-slate-800">
+                                                Customers who buy <span className="text-purple-600">{rule.antecedent}</span> also frequently buy <span className="text-purple-600">{rule.consequent}</span>.
+                                            </p>
+                                            <p className="text-xs text-slate-500">
+                                                Consider bundling these items or placing them near each other. Confidence: <span className="font-bold">{(rule.confidence * 100).toFixed(0)}%</span>
+                                            </p>
+                                        </div>
                                     </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-                </div>
-            </main>
+                                ))
+                            ) : (
+                                <p className="text-sm text-center text-slate-500 py-4">Not enough data to generate strategic insights yet.</p>
+                            )}
+                        </CardContent>
+                    </Card>
+                </motion.div>
+
+                <motion.div variants={animationVariants.item} className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><ShoppingCart className="text-green-500"/>Best Performers</CardTitle>
+                            <CardDescription>Top-selling items by quantity sold.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {top_selling.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={250}>
+                                    <BarChart data={top_selling} layout="vertical" margin={{ left: 20 }}>
+                                        <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
+                                        <XAxis type="number" hide />
+                                        <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                                        <RechartsTooltip cursor={{ fill: '#f1f5f9' }} />
+                                        <Bar dataKey="quantity" name="Quantity Sold" fill="#22c55e" background={{ fill: '#f1f5f9' }} radius={[0, 4, 4, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <p className="text-sm text-center text-slate-500 py-4">No sales data for top products.</p>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Target className="text-purple-500"/>Profit Champions</CardTitle>
+                            <CardDescription>Items generating the most profit.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {profitable_items.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={250}>
+                                    <BarChart data={profitable_items} layout="vertical" margin={{ left: 20 }}>
+                                        <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
+                                        <XAxis type="number" hide />
+                                        <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                                        <RechartsTooltip formatter={(value: number) => formatCurrency(value)} cursor={{ fill: '#f1f5f9' }} />
+                                        <Bar dataKey="profit" name="Profit Generated" fill="#8b5cf6" background={{ fill: '#f1f5f9' }} radius={[0, 4, 4, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <p className="text-sm text-center text-slate-500 py-4">No profit data available.</p>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Lightbulb className="text-yellow-500"/>Low Stock Alerts</CardTitle>
+                            <CardDescription>Items that require reordering soon.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="h-[250px] overflow-y-auto">
+                            {low_stock.length > 0 ? (
+                                <ul className="space-y-3 text-sm">
+                                    {low_stock.map((item: any) => (
+                                        <li key={item.id} className="flex justify-between items-center">
+                                            <span>{item.item_name}</span>
+                                            <span className="font-bold text-red-500 bg-red-100 px-2 py-1 rounded">{item.quantity} left</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <div className="flex items-center justify-center h-full">
+                                    <p className="text-sm text-center text-slate-500 py-4">✅ Inventory levels are healthy.</p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            </motion.main>
         </div>
     </>
     );
