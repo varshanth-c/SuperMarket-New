@@ -89,8 +89,8 @@ A modern, web-based Point of Sale (POS) and Inventory Management System built fo
     -   Create a `.env.local` file in the project root.
     -   Add your Supabase Project URL and Anon Key:
         ```env
-        VITE_SUPABASE_URL="https://bsrarbbjzftgtkiegqbh.supabase.co"
-VITE_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzcmFyYmJqemZ0Z3RraWVncWJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxNjkzNTYsImV4cCI6MjA2Mzc0NTM1Nn0.9hnhhAsIrQ0jdwxZN4PTBi_jjSsvQN0Hg0GAppKJy1k"
+        VITE_SUPABASE_URL="https://bsrarbbjzftgtkiegqbh.supabase.co"                                                                                                                                                        VITE_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzcmFyYm
+        JqemZ0Z3RraWVncWJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxNjkzNTYsImV4cCI6MjA2Mzc0NTM1Nn0.9hnhhAsIrQ0jdwxZN4PTBi_jjSsvQN0Hg0GAppKJy1k"
         ```
 
 4.  **Set up Supabase Database Schema:**
